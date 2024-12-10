@@ -1,45 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:weatherapp/pages/weatherpage.dart';
-/*
+import 'package:weatherapp/pages/settingspage.dart';
+
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp ({super.key});
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Weatherpage(),
-    );
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _isDarkMode = false;
+  bool _isMinimalist = true;
+
+  // Function to toggle the theme mode (light/dark)
+  void _toggleTheme(bool isDarkMode) {
+    setState(() {
+      _isDarkMode = isDarkMode;
+    });
   }
-}
 
-*/
-
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  // Function to toggle between minimalist and detailed modes
+  void _toggleMode(bool isMinimalist) {
+    setState(() {
+      _isMinimalist = isMinimalist;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Weather App',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const MyHomePage(),
+      theme: _isDarkMode ? ThemeData.dark() : ThemeData.light(),
+      home: MyHomePage(
+        toggleTheme: _toggleTheme,
+        toggleMode: _toggleMode,
+        isMinimalist: _isMinimalist,
+      ),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+  final Function(bool) toggleTheme;
+  final Function(bool) toggleMode;
+  final bool isMinimalist;
+
+  const MyHomePage({
+    super.key,
+    required this.toggleTheme,
+    required this.toggleMode,
+    required this.isMinimalist,
+  });
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -66,7 +83,26 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Weather App')),
+      appBar: AppBar(
+        title: const Text('Weather App'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SettingsPage(
+                    toggleTheme: widget.toggleTheme,
+                    toggleMode: widget.toggleMode,
+                    isMinimalist: widget.isMinimalist,
+                  ), // Pass both toggle functions and the current mode
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       drawer: Drawer(
         child: ListView(
           children: [
@@ -108,7 +144,10 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-      body: Weatherpage(selectedLocation: selectedLocation),
+      body: Weatherpage(
+        selectedLocation: selectedLocation,
+        isMinimalistMode: widget.isMinimalist, // Pass the minimalist mode here
+      ),
     );
   }
 }

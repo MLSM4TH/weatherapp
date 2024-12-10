@@ -4,6 +4,7 @@ import 'package:lottie/lottie.dart';
 import 'package:weatherapp/main.dart';
 import 'package:weatherapp/models/weathermodel.dart';
 import 'package:weatherapp/services/weatherservice.dart';
+import 'package:fl_chart/fl_chart.dart';
 /*
 class Weatherpage extends StatefulWidget {
   const Weatherpage({super.key});
@@ -138,14 +139,15 @@ class _WeatherPageState extends State<Weatherpage> {
 }
 */
 
-
-
-
-
 class Weatherpage extends StatefulWidget {
   final String selectedLocation;
+  final bool isMinimalistMode;
 
-  const Weatherpage({super.key, required this.selectedLocation});
+  const Weatherpage({
+    super.key,
+    required this.selectedLocation,
+    required this.isMinimalistMode,
+  });
 
   @override
   State<Weatherpage> createState() => _WeatherPageState();
@@ -155,7 +157,6 @@ class _WeatherPageState extends State<Weatherpage> {
   final _weatherService = Weatherservice('88f09a46e849953da5bbe054c1e93f6f');
   Weather? _weather;
 
-  // Fetch weather for the provided location
   _fetchWeather(String cityName) async {
     try {
       final weather = await _weatherService.getWeather(cityName);
@@ -167,6 +168,14 @@ class _WeatherPageState extends State<Weatherpage> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant Weatherpage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedLocation != oldWidget.selectedLocation) {
+      _fetchWeather(widget.selectedLocation);
+    }
+  }
+
   String getWeatherAnimation(String? mainCondition) {
     if (mainCondition == null) return 'assets/sunny.json';
 
@@ -174,17 +183,20 @@ class _WeatherPageState extends State<Weatherpage> {
       case 'clouds':
         return 'assets/cloudy.json';
       case 'mist':
+        return 'assets/misty.json';
       case 'smoke':
       case 'haze':
       case 'fog':
-        return 'assets/sunnycloudy.json';
+        return 'assets/sunnymisty.json';
       case 'rain':
+        return 'assets/cloudrainsun.json';
       case 'drizzle':
       case 'shower rain':
         return 'assets/cloudrainsun.json';
       case 'thunderstorm':
         return 'assets/lighting.json';
       case 'clear':
+        return 'assets/sunny.json';
       default:
         return 'assets/sunny.json';
     }
@@ -196,23 +208,144 @@ class _WeatherPageState extends State<Weatherpage> {
     _fetchWeather(widget.selectedLocation);
   }
 
+  double getValidValue(double? value) {
+    if (value == null || value.isNaN || value.isInfinite) {
+      return 0.0; // Provide a default value if the data is invalid
+    }
+    return value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // City name
+              Text(
+                _weather?.cityName ?? "Loading city...",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+
+              // Weather animation (Lottie animation based on weather condition)
+              SizedBox(
+                height:
+                    200, // Give the animation a fixed height to avoid layout issues
+                child:
+                    Lottie.asset(getWeatherAnimation(_weather?.mainCondition)),
+              ),
+
+              // Conditionally show either Minimalist or Detailed Mode
+              widget.isMinimalistMode
+                  ? MinimalistWeatherLayout(weather: _weather)
+                  : DetailedWeatherLayout(weather: _weather),
+
+              SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class MinimalistWeatherLayout extends StatelessWidget {
+  final Weather? weather;
+
+  const MinimalistWeatherLayout({super.key, required this.weather});
+
   @override
   Widget build(BuildContext context) {
     return Center(
+      // This will center the content horizontally
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center, // Center vertically
+        crossAxisAlignment: CrossAxisAlignment.center, // Center horizontally
         children: [
-          // City name
-          Text(_weather?.cityName ?? "Loading city..."),
+          Text('${weather?.temperature.round()}°C',
+              style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
+          Text(weather?.mainCondition ?? "", style: TextStyle(fontSize: 18)),
+        ],
+      ),
+    );
+  }
+}
 
-          // Animations
-          Lottie.asset(getWeatherAnimation(_weather?.mainCondition)),
+class DetailedWeatherLayout extends StatelessWidget {
+  final Weather? weather;
 
-          // Temperature
-          Text('${_weather?.temperature.round()}°C'),
+  const DetailedWeatherLayout({super.key, required this.weather});
 
-          // Condition
-          Text(_weather?.mainCondition ?? ""),
+  // Function to safely get weather data or return a default value
+  double getValidValue(double? value) {
+    if (value == null || value.isNaN || value.isInfinite) {
+      return 0.0; // Provide a default value if the data is invalid
+    }
+    return value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      // This will center the entire Column
+      child: Column(
+        mainAxisAlignment:
+            MainAxisAlignment.center, // Center the content vertically
+        crossAxisAlignment:
+            CrossAxisAlignment.center, // Center the content horizontally
+        children: [
+          // Left side: LineChart with fixed size
+          Container(
+            width: 200, // Explicit width constraint for the chart
+            height: 200, // Explicit height constraint for the chart
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(show: true),
+                titlesData: FlTitlesData(show: true),
+                borderData: FlBorderData(show: true),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: [
+                      FlSpot(0, getValidValue(weather?.temperature.toDouble())),
+                      FlSpot(1, getValidValue(weather?.humidity.toDouble())),
+                      FlSpot(2, getValidValue(weather?.windSpeed.toDouble())),
+                    ],
+                    isCurved: true,
+                    gradient: LinearGradient(
+                      colors: [Colors.blue, Colors.green, Colors.red],
+                    ),
+                    barWidth: 4,
+                    isStrokeCapRound: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          SizedBox(height: 20), // Add some space between the chart and details
+
+          // Weather Details (centered below the chart)
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center, // Center vertically
+            crossAxisAlignment:
+                CrossAxisAlignment.center, // Center horizontally
+            children: [
+              Text('${weather?.temperature.round() ?? 0}°C',
+                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
+              Text(weather?.mainCondition ?? "",
+                  style: TextStyle(fontSize: 18)),
+              SizedBox(height: 10),
+              Text('Humidity: ${weather?.humidity ?? 0}%',
+                  style: TextStyle(fontSize: 16)),
+              Text('Wind Speed: ${weather?.windSpeed ?? 0} m/s',
+                  style: TextStyle(fontSize: 16)),
+              Text('Pressure: ${weather?.pressure ?? 0} hPa',
+                  style: TextStyle(fontSize: 16)),
+            ],
+          ),
         ],
       ),
     );
